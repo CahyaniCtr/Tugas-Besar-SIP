@@ -1,0 +1,229 @@
+
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <meta charset="UTF-8"/>
+        <title>Kepler.gl embedded map</title>
+
+        <!--Uber Font-->
+        <link rel="stylesheet" href="https://d1a3f4spazzrp4.cloudfront.net/kepler.gl/uber-fonts/4.0.0/superfine.css">
+
+        <!--MapBox css-->
+        <link href="https://api.tiles.mapbox.com/mapbox-gl-js/v1.1.1/mapbox-gl.css" rel="stylesheet">
+
+        <!-— facebook open graph tags -->
+        <meta property="og:url" content="http://kepler.gl/" />
+        <meta property="og:title" content="Large-scale WebGL-powered Geospatial Data Visualization Tool" />
+        <meta property="og:description" content="Kepler.gl is a powerful web-based geospatial data analysis tool. Built on a high performance rendering engine and designed for large-scale data sets." />
+        <meta property="og:site_name" content="kepler.gl" />
+        <meta property="og:image" content="https://d1a3f4spazzrp4.cloudfront.net/kepler.gl/kepler.gl-meta-tag.png" />
+        <meta property="og:image:type" content="image/png" />
+        <meta property="og:image:width" content="800" />
+        <meta property="og:image:height" content="800" />
+
+        <!-— twitter card tags -->
+        <meta name="twitter:card" content="summary_large_image">
+        <meta name="twitter:site" content="@uber">
+        <meta name="twitter:creator" content="@uber">
+        <meta name="twitter:title" content="Large-scale WebGL-powered Geospatial Data Visualization Tool">
+        <meta name="twitter:description" content="Kepler.gl is a powerful web-based geospatial data analysis tool. Built on a high performance rendering engine and designed for large-scale data sets.">
+        <meta name="twitter:image" content="https://d1a3f4spazzrp4.cloudfront.net/kepler.gl/kepler.gl-meta-tag.png" />
+
+        <!-- Load React/Redux -->
+        <script src="https://unpkg.com/react@16.8.4/umd/react.production.min.js" crossorigin></script>
+        <script src="https://unpkg.com/react-dom@16.8.4/umd/react-dom.production.min.js" crossorigin></script>
+        <script src="https://unpkg.com/redux@3.7.2/dist/redux.js" crossorigin></script>
+        <script src="https://unpkg.com/react-redux@7.1.3/dist/react-redux.min.js" crossorigin></script>
+        <script src="https://unpkg.com/styled-components@4.1.3/dist/styled-components.min.js" crossorigin></script>
+
+        <!-- Load Kepler.gl -->
+        <script src="https://unpkg.com/kepler.gl@2.1.2/umd/keplergl.min.js" crossorigin></script>
+
+        <style type="text/css">
+          body {margin: 0; padding: 0; overflow: hidden;}
+        </style>
+
+        <!--MapBox token-->
+        <script>
+          /**
+           * Provide your MapBox Token
+           **/
+          const MAPBOX_TOKEN = 'pk.eyJ1IjoidWJlcmRhdGEiLCJhIjoiY2p5aHB5bzEzMDI3MjNucWx4dmhvbW5wYyJ9.ZjLMWjog4imdrZhtheCOtA';
+          const WARNING_MESSAGE = 'Please Provide a Mapbox Token in order to use Kepler.gl. Edit this file and fill out MAPBOX_TOKEN with your access key';
+        </script>
+
+        <!-- GA: Delete this as you wish, However to pat ourselves on the back, we only track anonymous pageview to understand how many people are using kepler.gl. -->
+        <script>
+          (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+          (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+          m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+          })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+          ga('create', 'UA-64694404-19', {
+            'storage': 'none',
+            'clientId': localStorage.getItem('ga:clientId')
+          });
+          ga(function(tracker) {
+              localStorage.setItem('ga:clientId', tracker.get('clientId'));
+          });
+          ga('set', 'checkProtocolTask', null); // Disable file protocol checking.
+          ga('set', 'checkStorageTask', null); // Disable cookie storage checking.
+          ga('set', 'historyImportTask', null); // Disable history checking (requires reading from cookies).
+          ga('set', 'page', 'keplergl-html');
+          ga('send', 'pageview');
+        </script>
+      </head>
+      <body>
+        <!-- We will put our React component inside this div. -->
+        <div id="app">
+          <!-- Kepler.gl map will be placed here-->
+        </div>
+
+        <!-- Load our React component. -->
+        <script>
+          /* Validate Mapbox Token */
+          if ((MAPBOX_TOKEN || '') === '' || MAPBOX_TOKEN === 'PROVIDE_MAPBOX_TOKEN') {
+            alert(WARNING_MESSAGE);
+          }
+
+          /** STORE **/
+          const reducers = (function createReducers(redux, keplerGl) {
+            return redux.combineReducers({
+              // mount keplerGl reducer
+              keplerGl: keplerGl.keplerGlReducer.initialState({
+                uiState: {
+                  readOnly: true,
+                  currentModal: null
+                }
+              })
+            });
+          }(Redux, KeplerGl));
+
+          const middleWares = (function createMiddlewares(keplerGl) {
+            return keplerGl.enhanceReduxMiddleware([
+              // Add other middlewares here
+            ]);
+          }(KeplerGl));
+
+          const enhancers = (function craeteEnhancers(redux, middles) {
+            return redux.applyMiddleware(...middles);
+          }(Redux, middleWares));
+
+          const store = (function createStore(redux, enhancers) {
+            const initialState = {};
+
+            return redux.createStore(
+              reducers,
+              initialState,
+              redux.compose(enhancers)
+            );
+          }(Redux, enhancers));
+          /** END STORE **/
+
+          /** COMPONENTS **/
+          var KeplerElement = (function makeKeplerElement(react, keplerGl, mapboxToken) {
+            var LogoSvg = function LogoSvg() {
+              return react.createElement(
+                "div",
+                { className: "logo-container", style: {position: 'fixed', zIndex: 10000, padding: '4px'} },
+                  react.createElement(
+                    "svg",
+                    {
+                      className: "kepler_gl__logo",
+                      width: "107px",
+                      height: "21px",
+                      viewBox: "0 0 124 24"
+                    },
+                    react.createElement(
+                      "g",
+                      { transform: "translate(13.500000, 13.500000) rotate(45.000000) translate(-13.500000, -13.500000) translate(4.000000, 4.000000)" },
+                      react.createElement("rect", { x: "0", y: "6", transform: "matrix(2.535181e-06 1 -1 2.535181e-06 18.1107 6.0369)", fill: "#535C6C", width: "12.1", height: "12.1" }),
+                      react.createElement("rect", { x: "6", y: "0", transform: "matrix(2.535182e-06 1 -1 2.535182e-06 18.1107 -6.0369)", fill:"#1FBAD6", width: "12.1", height: "12.1" })
+                    ),
+                    react.createElement(
+                      "g",
+                      {},
+                      react.createElement("path", { fill:"#1FBAD6", d: "M39,8.7h2.2l-2.8,4.2l2.9,5.1H39l-2.4-4.2h-1.3V18h-2V5l2-0.1v7.3h1.3L39,8.7z" }),
+                      react.createElement("path", { fill:"#1FBAD6", d: "M42.4,13.3c0-1.5,0.4-2.7,1.1-3.5s1.8-1.2,3.1-1.2c1.3,0,2.2,0.4,2.8,1.1c0.6,0.7,0.9,1.8,0.9,3.3 c0,0.4,0,0.8,0,1.1h-5.8c0,1.6,0.8,2.4,2.4,2.4c1,0,2-0.2,2.9-0.6l0.2,1.7c-0.4,0.2-0.9,0.4-1.4,0.5s-1.1,0.2-1.7,0.2 c-1.5,0-2.6-0.4-3.3-1.2C42.8,16.1,42.4,14.9,42.4,13.3z M46.6,10.1c-0.7,0-1.2,0.2-1.5,0.5c-0.4,0.4-0.6,0.9-0.6,1.7h4 c0-0.8-0.2-1.4-0.5-1.7S47.2,10.1,46.6,10.1z" }),
+                      react.createElement("path", { fill:"#1FBAD6", d: "M57.1,18.2c-1,0-1.8-0.3-2.3-0.9l0,0l0,1.3v2.5h-2V8.7h1.5l0.3,0.9h0c0.3-0.3,0.7-0.6,1.2-0.7 c0.4-0.2,0.9-0.3,1.4-0.3c1.2,0,2.1,0.4,2.7,1.1c0.6,0.7,0.9,2,0.9,3.7c0,1.6-0.3,2.8-1,3.7C59.2,17.8,58.3,18.2,57.1,18.2z M56.7,10.3c-0.4,0-0.8,0.1-1.1,0.2c-0.3,0.2-0.6,0.4-0.8,0.7v4.3c0.2,0.3,0.4,0.5,0.7,0.7c0.3,0.2,0.7,0.3,1.1,0.3 c0.7,0,1.2-0.2,1.6-0.7c0.4-0.5,0.5-1.3,0.5-2.5c0-0.8-0.1-1.4-0.2-1.8s-0.4-0.7-0.7-0.9C57.6,10.4,57.2,10.3,56.7,10.3z" }),
+                      react.createElement("path", { fill:"#1FBAD6", d: "M63.2,16V5l2-0.1v10.8c0,0.3,0.1,0.5,0.2,0.6c0.1,0.1,0.3,0.2,0.6,0.2c0.3,0,0.6,0,0.9-0.1V18 c-0.4,0.1-1,0.2-1.6,0.2c-0.8,0-1.3-0.2-1.7-0.5S63.2,16.8,63.2,16z" }),
+                      react.createElement("path", { fill:"#1FBAD6", d: "M68.2,13.3c0-1.5,0.4-2.7,1.1-3.5c0.7-0.8,1.8-1.2,3.1-1.2c1.3,0,2.2,0.4,2.8,1.1c0.6,0.7,0.9,1.8,0.9,3.3 c0,0.4,0,0.8,0,1.1h-5.8c0,1.6,0.8,2.4,2.4,2.4c1,0,2-0.2,2.9-0.6l0.2,1.7c-0.4,0.2-0.9,0.4-1.4,0.5s-1.1,0.2-1.7,0.2 c-1.5,0-2.6-0.4-3.3-1.2C68.6,16.1,68.2,14.9,68.2,13.3z M72.4,10.1c-0.7,0-1.2,0.2-1.5,0.5c-0.4,0.4-0.6,0.9-0.6,1.7h4 c0-0.8-0.2-1.4-0.5-1.7S73,10.1,72.4,10.1z" }),
+                      react.createElement("path", { fill:"#1FBAD6", d: "M80.2,8.7l0.1,1.7h0c0.3-0.6,0.7-1.1,1.1-1.4c0.4-0.3,1-0.5,1.6-0.5c0.4,0,0.7,0,1,0.1l-0.1,2 c-0.3-0.1-0.7-0.2-1-0.2c-0.7,0-1.3,0.3-1.7,0.8c-0.4,0.5-0.7,1.2-0.7,2.1V18h-2V8.7H80.2z" }),
+                      react.createElement("path", { fill:"#1FBAD6", d: "M83.8,17c0-0.8,0.4-1.2,1.2-1.2c0.8,0,1.2,0.4,1.2,1.2c0,0.8-0.4,1.1-1.2,1.1C84.2,18.2,83.8,17.8,83.8,17z" }),
+                      react.createElement("path", { fill:"#1FBAD6", d: "M88.5,18.7c0-0.8,0.4-1.4,1.2-1.8c-0.6-0.3-0.9-0.8-0.9-1.5c0-0.7,0.4-1.2,1.1-1.6c-0.3-0.3-0.6-0.6-0.7-0.9 c-0.2-0.4-0.2-0.8-0.2-1.3c0-1,0.3-1.8,0.9-2.3c0.6-0.5,1.6-0.8,2.8-0.8c0.5,0,1,0,1.4,0.1c0.4,0.1,0.8,0.2,1.1,0.4l2.4-0.2v1.5 h-1.5c0.2,0.4,0.2,0.8,0.2,1.3c0,1-0.3,1.7-0.9,2.2s-1.5,0.8-2.7,0.8c-0.7,0-1.2-0.1-1.6-0.2c-0.1,0.1-0.2,0.2-0.3,0.3 c-0.1,0.1-0.1,0.2-0.1,0.4c0,0.2,0.1,0.3,0.2,0.4c0.1,0.1,0.3,0.2,0.6,0.2l2.7,0.2c1,0.1,1.7,0.3,2.2,0.6c0.5,0.3,0.8,0.9,0.8,1.7 c0,0.6-0.2,1.1-0.5,1.5c-0.4,0.4-0.9,0.8-1.5,1c-0.7,0.2-1.5,0.4-2.4,0.4c-1.3,0-2.3-0.2-3-0.6C88.8,20.1,88.5,19.5,88.5,18.7z M95.1,18.4c0-0.3-0.1-0.5-0.3-0.7s-0.6-0.2-1.1-0.3l-2.7-0.3c-0.2,0.1-0.4,0.3-0.5,0.5c-0.1,0.2-0.2,0.4-0.2,0.6 c0,0.4,0.2,0.8,0.5,1c0.4,0.2,1,0.3,1.8,0.3C94.2,19.5,95.1,19.2,95.1,18.4z M94.3,11.5c0-0.6-0.1-1-0.4-1.2 c-0.3-0.2-0.7-0.3-1.3-0.3c-0.7,0-1.1,0.1-1.4,0.3c-0.3,0.2-0.4,0.6-0.4,1.2s0.1,1,0.4,1.2c0.3,0.2,0.7,0.3,1.4,0.3 c0.6,0,1.1-0.1,1.3-0.4S94.3,12,94.3,11.5z" }),
+                      react.createElement("path", { fill:"#1FBAD6", d: "M99.4,16V5l2-0.1v10.8c0,0.3,0.1,0.5,0.2,0.6c0.1,0.1,0.3,0.2,0.6,0.2c0.3,0,0.6,0,0.9-0.1V18 c-0.4,0.1-1,0.2-1.6,0.2c-0.8,0-1.3-0.2-1.7-0.5S99.4,16.8,99.4,16z" })
+                    )
+                  )
+                );
+              };
+
+            return function App() {
+              var rootElm = react.useRef(null);
+              var _useState = react.useState({
+                width: window.innerWidth,
+                height: window.innerHeight
+              });
+              var windowDimension = _useState[0];
+              var setDimension = _useState[1];
+              react.useEffect(function sideEffect(){
+                function handleResize() {
+                  setDimension({width: window.innerWidth, height: window.innerHeight});
+                };
+                window.addEventListener('resize', handleResize);
+                return function() {window.removeEventListener('resize', handleResize);};
+              }, []);
+              return react.createElement(
+                'div',
+                {style: {position: 'absolute', left: 0, width: '100vw', height: '100vh'}},
+                LogoSvg(),
+                react.createElement(keplerGl.KeplerGl, {
+                  mapboxApiAccessToken: mapboxToken,
+                  id: "map",
+                  width: windowDimension.width,
+                  height: windowDimension.height
+                })
+              )
+            }
+          }(React, KeplerGl, MAPBOX_TOKEN));
+
+          const app = (function createReactReduxProvider(react, reactRedux, KeplerElement) {
+            return react.createElement(
+              reactRedux.Provider,
+              {store},
+              react.createElement(KeplerElement, null)
+            )
+          }(React, ReactRedux, KeplerElement));
+          /** END COMPONENTS **/
+
+          /** Render **/
+          (function render(react, reactDOM, app) {
+            reactDOM.render(app, document.getElementById('app'));
+          }(React, ReactDOM, app));
+        </script>
+        <!-- The next script will show how to interact directly with Kepler map store -->
+        <script>
+          /**
+           * Customize map.
+           * In the following section you can use the store object to dispatch Kepler.gl actions
+           * to add new data and customize behavior
+           */
+          (function customize(keplerGl, store) {
+            const datasets = [{"version":"v1","data":{"id":"pg646vnzc","label":"exportan_df_restaurant_5.csv","color":[143,47,191],"allData":[[0,"Hotel Pandu Lakeside Parapat","ChIJ54CRF6juMTARMP0dwmZ2Tvs",2.66468,98.9351677,4,"['lodging', 'point_of_interest', 'establishment']","Jl. Kol. TPR Sinaga No.12, Tiga Raja, Kabupaten Simalungun"],[1,"Carolina Hotel","ChIJx02GEiHqMTARRwwQH1zyCBA",2.668006,98.861395,4.3,"['lodging', 'restaurant', 'food', 'point_of_interest', 'establishment']","Tuktuk Siadong, Samosir Regency"],[2,"Pandu Lakeside - Tuk Tuk","ChIJIzqpgiLqMTARQ2BX6rrvhjo",2.674071,98.85856229999999,4,"['lodging', 'point_of_interest', 'establishment']","Jl. Lingkar Tuktuk Siadong no. 26 Pulau, Tuktuk Siadong, Kabupaten Samosir"],[3,"Zoe's Paradise, Waterfront Hotel","ChIJI9cKFR_qMTARODgDrxiGvOs",2.6698533,98.85702359999999,4.4,"['lodging', 'point_of_interest', 'establishment']","Tuktuk Siadong, Samosir Regency"],[4,"Lekjon Cottage","ChIJpQ_uyxDqMTARwLyjmXo_N2k",2.6766163,98.8560352,3.9,"['lodging', 'point_of_interest', 'establishment']","Tuktuk Siadong, Samosir island Tuktuk"],[5,"SIBAYAK GUEST HOUSE (TUKTUK - LAKE TOBA)","ChIJRYavdRrqMTARxtIJnliSWYw",2.676007,98.851231,4.2,"['lodging', 'point_of_interest', 'establishment']","Tuktuk Siadong, Simanindo, Samosir Regency"],[6,"Samosir Villa Resort","ChIJ4ygx9yDqMTARdIw0HCWK4TA",2.6679536,98.860233,4.2,"['lodging', 'point_of_interest', 'establishment']","Jl. Lkr. Tuktuk No.Kelurahan, Tuktuk Siadong, Kabupaten Samosir"],[7,"Hotel Niagara Parapat","ChIJr3cLw6TuMTARlg1nyGPNCiM",2.6614141,98.9439489,4.4,"['lodging', 'point_of_interest', 'establishment']","Jl. Pembangunan No.1, Parapat, Kabupaten Simalungun"],[8,"Hotel Tuk-Tuk Timbul","ChIJqyaaXgnqMTARnbSYeZNuqzA",2.680838,98.84064599999999,4.4,"['lodging', 'restaurant', 'food', 'point_of_interest', 'establishment']","Jalan Lingkar Tuk-Tuk, Pulau Samosir, Kabupaten Samosir"],[9,"HOTEL SILINTONG","ChIJ0VLwQiHqMTARlsvxUahbuaE",2.6703915,98.8625855,4.1,"['lodging', 'point_of_interest', 'establishment']","Tuktuk Siadong, Samosir Regency"],[10,"Hotel Sumber Pulo Mas","ChIJqZNC6R7qMTAR80eJqMqZeF8",2.6706325,98.8624486,3.8,"['lodging', 'point_of_interest', 'establishment']","Jalan Lingkaran Tuktuk Kelurahan Tuktuk Siadong, Kabupaten, Kabupaten Samosir"],[11,"Bagus Bay Homestay","ChIJ-Rsa9RvqMTARyznnFhyrm-w",2.6699238,98.8550645,4.3,"['lodging', 'point_of_interest', 'establishment']","Jl. Lkr. Tuktuk No.Kelurahan, Tuktuk Siadong, Kabupaten Samosir"],[12,"Laster Jony's Guesthouse","ChIJIX98axrqMTAR1d7buKRi834",2.6755029,98.85153419999999,4.4,"['lodging', 'point_of_interest', 'establishment']","Samosir Regency"],[13,"Samosir Villas Resort","ChIJAQAAwPfpMTARwlaPUu513ys",2.6679028,98.86046119999999,4.3,"['lodging', 'point_of_interest', 'establishment']","Tuktuk Siadong, Samosir Regency"],[14,"Tuk-tuk View Inn","ChIJtbdYhiHqMTARJiDDDgItQP0",2.6709337,98.8605662,3.5,"['lodging', 'point_of_interest', 'establishment']","Tuktuk Siadong, Samosir Regency"],[15,"RedDoorz near Danau Toba Parapat","ChIJrZ60XgPsMTARkngLXsC1f-4",2.6703557,98.9345321,4.2,"['lodging', 'point_of_interest', 'establishment']","Jl. Sisingamangaraja No.144, Tiga Raja, Kabupaten Simalungun"],[16,"Anju Cottage","ChIJCXmpChzqMTARR3tDqY-NmyM",2.6769005,98.8540903,4.2,"['lodging', 'point_of_interest', 'establishment']","Jl. Lkr. Tuktuk No.Kelurahan, Tuktuk Siadong, Kabupaten Samosir"],[17,"Patra Comfort Parapat","ChIJbRRU_IbrMTAR08yuUTPoWXE",2.6960063,98.9183953,4.3,"['lodging', 'point_of_interest', 'establishment']","JI. Pertamina Siuhan Rantauprapat Rantauprapat Pematangsiantar Sumatera Utara, Sibaganding, Kabupaten Simalungun"],[18,"Aman's Guesthouse","ChIJvUSxEhrqMTARk9I9J2jTDwQ",2.6757471,98.8514457,4.2,"['lodging', 'point_of_interest', 'establishment']","Jl. Lkr. Tuktuk, Kabupaten Samosir"],[19,"RedDoorz @ Tuktuk Danau Toba","ChIJq0hBJ9brMTARBQniYMZaFgI",2.6759842,98.8570245,3.3,"['lodging', 'point_of_interest', 'establishment']","Jl. Lkr. Tuktuk No.10, Tuktuk Siadong"],[20,"Melissa Palace Hotel and Karaoke","ChIJFYjUQ6nuMTAR-g709L42XbQ",2.6599509,98.9315927,3.5,"['lodging', 'point_of_interest', 'establishment']","Jl. Josep Sinaga No.28, Tiga Raja, Kabupaten Simalungun"],[21,"Gokhon Guest House","ChIJDUrfeRfqMTARauMD_WXx-aw",2.6766527,98.85540929999999,4.4,"['lodging', 'point_of_interest', 'establishment']","Jl. Lkr. Tuktuk No.26, Tuktuk Siadong, Kabupaten Samosir"],[22,"Toledo Inn","ChIJmXCy9RvqMTAR0qB_LS18T0I",2.6774856,98.8522248,4.2,"['lodging', 'point_of_interest', 'establishment']","Jl. Lingkar, Tuktuk Siadong, Kabupaten Samosir"],[23,"Silintong Hotel","ChIJXyfc5aTuMTAR6gOMpe3wgmI",2.657395,98.938923,3.9,"['lodging', 'point_of_interest', 'establishment']","Tiga Raja, Simalungun Regency"],[24,"Orari View Home Stay","ChIJ12u00iHqMTAR1GDkicgb6ng",2.677099,98.8545164,4.2,"['lodging', 'point_of_interest', 'establishment']","Jl. Lkr. Tuktuk No.Kelurahan, Tuktuk Siadong, Kabupaten Samosir"],[25,"Pandu Lake Side Hotel","ChIJJ_QW5qTuMTARKn45LUc0PAg",2.6573091,98.93896579999999,0,"['lodging', 'point_of_interest', 'establishment']","JL. Tuk Tuk Siadong, Tiga Raja, Kabupaten Simalungun"],[26,"Hariara Guest House","ChIJ-Rsa9RvqMTARKP8trNTvxBA",2.6767747,98.85526279999999,4.6,"['lodging', 'point_of_interest', 'establishment']","Jl. Lkr. Tuktuk No.Kelurahan, Tuktuk Siadong, Kabupaten Samosir"],[27,"Reggae Guesthouse and Restaurant","ChIJG7ja9K_uMTARQkH1OYImFSE",2.677421,98.8507506,4.3,"['lodging', 'point_of_interest', 'establishment']","Pandan, Tuktuk Siadong, Kabupaten Samosir"],[28,"Sony Hotel Samosir","ChIJx3OOow_qMTARY-iyK-ZAYEU",2.6776708,98.8449996,4,"['lodging', 'point_of_interest', 'establishment']","Północna, Kabupaten Samosir"],[29,"DG Inn Cafe & Bar Toba Samosir","ChIJs2aLLSDqMTARJxIHihoGw1I",2.668474,98.859,3,"['lodging', 'point_of_interest', 'establishment']","Jl. Tuktuk No.9, Toba, Samosir Regency"],[30,"OPRISS HOTEL","ChIJPwihRSbvMTARGOb8t-1B7D4",2.6578798,98.9343883,3.8,"['lodging', 'point_of_interest', 'establishment']","Jalan Motung Sibisa, Tiga Raja, Girsang Sipangan Bolon, Pardamean Ajibata, Kabupaten Simalungun"],[31,"Hotel Sumber Pulo Mas","ChIJZ7-4xx3qMTARs-jcmq9urOo",2.668057,98.85154999999999,0,"['lodging', 'point_of_interest', 'establishment']","Jl. Lkr. Tuktuk No.Kelurahan, Tuktuk Siadong, Kabupaten Samosir"],[32,"Leokap Homestay","ChIJwR6YhGHrMTARxupaQ_fWSDg",2.6716116,98.8611802,4.3,"['lodging', 'point_of_interest', 'establishment']","Jl. Lkr. Tuktuk, Tuktuk Siadong, Kabupaten Samosir"],[33,"Hotel Toba Nauli","ChIJpQJq6qnuMTARxsPoi7h71hc",2.6645919,98.9313612,3.9,"['lodging', 'point_of_interest', 'establishment']","Jl. Haranggaol No.03, Tiga Raja, Kabupaten Simalungun"],[34,"Toba Sunset","ChIJN67VtRvqMTARmYmgdVRp3yE",2.6733673,98.8512787,4.6,"['lodging', 'restaurant', 'food', 'point_of_interest', 'establishment']","Tuktuk Siadong, Samosir Regency"],[35,"RedDoorz near Pantai Bebas Parapat","ChIJqbX-VortMTARdMdFE9OmgUI",2.6703227,98.9345242,4,"['lodging', 'point_of_interest', 'establishment']","Jl. Sisingamangaraja No.171, Kabupaten Simalungun"],[36,"Bernard Restaurant & Acc","ChIJ-Rsa9RvqMTARDymttV-8qGA",2.6719803,98.8607328,4.3,"['lodging', 'restaurant', 'food', 'point_of_interest', 'establishment']","Jl. Lkr. Tuktuk, Tuktuk Siadong, Kabupaten Samosir"],[37,"OYO 2379 Hotel Sibigo","ChIJAQAAwPfpMTAR8ETCLXc9GB8",2.6692162,98.8617822,4.4,"['lodging', 'point_of_interest', 'establishment']","19, Jl. Lkr. Tuktuk No.19, Tuktuk Siadong, Kabupaten Samosir"],[38,"OYO 3275 Hotel Harapan Isyes","ChIJa_FvH0LvMTARVcX0lTQD8vU",2.663612,98.93270199999999,0,"['lodging', 'point_of_interest', 'establishment']","Jl. Bukit Barisan, Tiga Raja, Kabupaten Simalungun"],[39,"OYO 1677 Gapura Hotel","ChIJr8MFyLPtMTAR-3HjT0Xp8aQ",2.6813452,98.9266521,4.4,"['lodging', 'point_of_interest', 'establishment']","Gapura Hotel Jl.siborong borong -Siantar - Panatapan - Km.2 Desa Said Dolok Kelurahan Sibaganding, Girsang, Simalungun Regency"],[40,"Orari View Restaurant & Homestay","ChIJu1CWPRnqMTARE9QvbsQx0pg",2.6771165,98.85463600000001,4.5,"['lodging', 'restaurant', 'food', 'point_of_interest', 'establishment']","Jl. Lkr. Tuktuk No.Kelurahan, Tuktuk Siadong, Kabupaten Samosir"],[41,"Melissa Palace Hotel and Karaoke","ChIJhWh4LeLvMTARI1IG5eFiH44",2.6599692,98.9317068,0,"['lodging', 'point_of_interest', 'establishment']","Jl. Josep Sinaga, Tiga Raja, Kabupaten Simalungun"],[42,"Hans Homestay","ChIJ3y-SDf3rMTARe5uJW0bShHw",2.6765833,98.85333229999999,0,"['lodging', 'point_of_interest', 'establishment']","Jl. Lkr. Tuktuk, Tuktuk Siadong, Kabupaten Samosir"],[43,"Martha guest house","ChIJoYhcwdzrMTARR3SXlDocZD4",2.6728189,98.8511233,4.8,"['lodging', 'point_of_interest', 'establishment']","Jl. Lkr. Tuktuk, Tuktuk Siadong, Kabupaten Samosir"],[44,"Marysca Souvenir Shop","ChIJj_N8MyDqMTAReznkVAwnbwY",2.6685794,98.85925499999999,4.5,"['lodging', 'point_of_interest', 'store', 'establishment']","Jl. Lkr. Tuktuk No.Kelurahan, Tuktuk Siadong, Kabupaten Samosir"],[45,"Marina cottage","ChIJBVfA5qvpMTARUNKZNm9jWxA",2.6572301,98.85576400000001,0,"['lodging', 'point_of_interest', 'establishment']","Tuktuk Siadong, Samosir Regency"],[46,"Rodeo Penginapan","ChIJ4_IBgiLqMTAR3RyiyiL4RuM",2.6742149,98.8582823,3.9,"['lodging', 'point_of_interest', 'establishment']","Jl. Lkr. Tuktuk, Tuktuk Siadong, Kabupaten Samosir"],[47,"Juma cottages","ChIJgXyo-RvqMTARkoMXgeWO9RQ",2.671393,98.85229,5,"['lodging', 'point_of_interest', 'establishment']","Jl. Gereja, Tuktuk Siadong, Kabupaten Samosir"],[48,"Penginapan Marysca","ChIJ65iuaZPrMTARBzv-nuK-JCA",2.6686426,98.85933399999999,4.3,"['lodging', 'point_of_interest', 'establishment']","Jl. Lkr. Tuktuk No.Kelurahan, Tuktuk Siadong, Kabupaten Samosir"],[49,"INNA PARAPAT HOTEL","ChIJAbg-HMwxMTARAT45O9op3Hk",2.6651545,98.9311063,4.4,"['lodging', 'point_of_interest', 'establishment']","Danau Toba, Jl. Marihat No.1, Tiga Raja, Kabupaten Simalungun"],[50,"Samosir Cottages","ChIJF1i7MxrqMTARBvzfd8PzMc0",2.677302,98.853929,4.3,"['lodging', 'point_of_interest', 'establishment']","Jl lingkar Tuk Tuk Lake Toba, Sumatera Utara"],[51,"Tabo Cottages, Restaurant, German Bakery and Coffee roastery","ChIJjT2JxKTuMTARVjfqduABrN0",2.6700399,98.85604699999999,4.5,"['bakery', 'lodging', 'restaurant', 'food', 'point_of_interest', 'store', 'establishment']","Jl. Lkr. Tuktuk, Tuktuk Siadong, Kabupaten Samosir"],[52,"Danau Toba International Cottage Parapat","ChIJUQjUd6nuMTARXH3_jriNAEw",2.659602,98.931246,4.1,"['lodging', 'point_of_interest', 'establishment']","Jl. Nelson Purba No.4, Parapat, Girsang Sipangan Bolon, Tiga Raja, Medan"],[53,"Atsari Hotel","ChIJu2YPVx3sMTARds5qJAhCLQk",2.6656334,98.9360482,4.3,"['lodging', 'point_of_interest', 'establishment']","Jl. Pulau Samosir No.9, Tiga Raja, Kabupaten Simalungun"],[54,"The Parapat View Hotel","ChIJgTNiOa_uMTARwBfRFUgPn7E",2.6657382,98.938487,4.1,"['lodging', 'point_of_interest', 'establishment']","Jl. Sidaha Pinto No. 7, Simalungun, Kabupaten Simalungun"],[55,"Toba Village inn","ChIJ404WnB7qMTARgL_YG3_Jvn0",2.6689698,98.8536467,4.4,"['lodging', 'restaurant', 'food', 'point_of_interest', 'establishment']","Kampung Tuktuk Siadong, Kecamatan Simanindo, Ambarita, Tuktuk Siadong, Kabupaten Samosir"],[56,"Toba Beach Hotel","ChIJAzA8Z6TpMTARpXqqP02rY2w",2.6404661,98.8725362,4.3,"['lodging', 'point_of_interest', 'establishment']","Pulau Samosir, Kabupaten Samosir"],[57,"Darma Agung Beach Hotel","ChIJr8g2RCDsMTAR9KkPu4GNigs",2.664443,98.92893300000001,3.9,"['lodging', 'point_of_interest', 'establishment']","Jalan Sipora Pora No.4, Girsang Sipanganbolon,, Pardamean Ajibata, Kabupaten Toba Samosir"],[58,"Mas Cottages","ChIJK_i05g7qMTAR7MphkfT2y0c",2.6789551,98.84348290000001,3.9,"['lodging', 'point_of_interest', 'establishment']","Tuk Tuk Pinda Raya"],[59,"Sapadia Hotel and Cottage Parapat","ChIJxTiK_qbuMTARDfYgEMkoW8g",2.6625669,98.9365595,3.8,"['lodging', 'point_of_interest', 'establishment']","Jl. Josep Sinaga No.26a, Tiga Raja, Kabupaten Simalungun"],[60,"Taman Simalem Resort","ChIJQ7V2AnuyMTAR6R_HQ6Z5oY0",2.887772,98.50730159999999,4.5,"['lodging', 'point_of_interest', 'establishment']","Jl. Raya Merek No.KM, RW.9, Kodon-Kodon, Kabupaten Karo"],[61,"OYO 2186 Tongging Beach","ChIJ71oImX2yMTARtnvAy-GK4Uo",2.8981857,98.52931199999999,4,"['lodging', 'point_of_interest', 'establishment']","Sibolangit, Karo Regency"],[62,"SPOT ON 2824 Hotel Permata","ChIJM_BljJOtMTARJ8ParigGcuU",2.9074047,98.4898829,3.9,"['lodging', 'point_of_interest', 'establishment']","Pengambaten, Karo Regency"],[63,"Agro Hall, Taman Simalem Resort","ChIJ4ckU8sCyMTARtAXclJ039LQ",2.8841136,98.5028397,4.8,"['lodging', 'point_of_interest', 'establishment']","Km 9, Jalan Raya Merek-Sidikalang, Kodon-Kodon, Kabupaten Karo"],[64,"Hotel Debang Resort","ChIJn_Okp4q0MTARhxov9LVMWrw",2.8138703,98.5277272,4.1,"['lodging', 'point_of_interest', 'establishment']","Jl. Silahi Sabungan, Silalahi 3, Sabungan, Paropo, Kabupaten Dairi"],[65,"RedDoorz Plus @ Jalan Tugu Silalahi Tongging","ChIJoebm-NqzMTARtgEi9Vw3PlU",2.8894307,98.5211271,3.8,"['lodging', 'point_of_interest', 'establishment']","Jl. Tugu Silalahi - Sabungan, Sabungan, Kabupaten Karo"],[66,"Anugrah Tongging Hotel","ChIJkVIRAn2yMTARifgC74gB0c8",2.8973542,98.53084299999999,4,"['lodging', 'point_of_interest', 'establishment']","Sibolangit, Karo Regency"],[67,"Roman Sinasi Hotel","ChIJGV58PoyyMTARcdhT5NltsXM",2.8941789,98.5206582,3.6,"['lodging', 'point_of_interest', 'establishment']","Jl. Tugu Silalahi - Sabungan, Tongging, Kabupaten Karo"],[68,"Taman Simalem Resort","ChIJda7QVFmtMTARAhxWymGIQ4o",2.910124,98.500671,4.4,"['point_of_interest', 'establishment']","Pengambaten, Karo Regency"],[69,"Wisma Sibayak","ChIJGV58PoyyMTAReNN3ujItjPc",2.8894285,98.5211423,3.8,"['lodging', 'point_of_interest', 'establishment']","Jl. Tugu Silalahi - Sabungan, Tongging, Kabupaten Karo"],[70,"TR INN (Penginapan KELUARGA)","ChIJBTh5sDutMTARh-sWeOmKu08",2.9318062,98.4986373,3.9,"['lodging', 'point_of_interest', 'establishment']","menit dari Sp, Jalan Lintas Merek - Sidikalang No.5, Aek Popo, Situnggaling, Kabupaten Karo"],[71,"Tr Inn","ChIJ8f7wYf2sMTARvdkIznBRiHo",2.9447386,98.5188683,0,"['point_of_interest', 'establishment']","Jl. Raya Merek-Sidikalang No.275, Merek, Kabupaten Karo"],[72,"OYO 2382 Wisata Hotel","ChIJfdFpCyLFMTARmqYtX3imiHk",2.6082079,98.6967059,3.6,"['lodging', 'point_of_interest', 'establishment']","Jl. Kejaksaan No.42, Ps. Pangururan, Kabupaten Samosir"],[73,"Hotel Ompu Herti","ChIJHfk_84oELjARBm0gi_nTCHQ",2.3343228,99.05563479999999,4,"['lodging', 'point_of_interest', 'establishment']","Jl. Pemandian No.02, Tobasa, Sangkar Nihuta, Balige"],[74,"Pondok Berata Dapdap","ChIJIQejTFgDLjAR3krUSdRi-eE",2.3541731,99.02547779999999,4.8,"['lodging', 'point_of_interest', 'establishment']","Tara Bunga, Toba Samosir Regency"],[75,"OYO 1095 Rap Hotel","ChIJaymk7sUFLjARoha4eHinfto",2.33413,99.06080999999999,4.2,"['lodging', 'point_of_interest', 'establishment']","Jl. Siborong Borong - Parapat No.57, Pardede Onan, Kabupaten Toba Samosir"],[76,"Ita Pagarbatu Homestay","ChIJ4SBnxUwFLjARTzC9DDqfDMM",2.3318278,99.04892199999999,0,"['lodging', 'point_of_interest', 'establishment']","Silalahi Pagar Batu, Toba Samosir Regency"],[77,"Tiara Bunga Hotel","ChIJq6qqqqYELjAR-zigkhogd_c",2.3631363,99.0304127,4.2,"['lodging', 'point_of_interest', 'establishment']","Jl. Tuktuk Jl. Raya TaraBunga, Tara Bunga, Kabupaten Toba Samosir"],[78,"Sere Nauli Hotel","ChIJL9gQ4zQBLjAReP8aeHWNuas",2.3528556,99.12177360000001,4,"['lodging', 'point_of_interest', 'establishment']","Jl. Sisingamangaraja No.1, Ps. Laguboti, Kabupaten Toba Samosir"],[79,"Mutiara Balige Hotel","ChIJd1aAaWAELjARlprMah8Buek",2.333485,99.0588186,4,"['lodging', 'point_of_interest', 'establishment']","Sibola Hotangsas, Toba Samosir Regency"],[80,"Hotel Santo Djaya","ChIJw7WZlMj_MTAREU1AtAgPekc",2.4451561,99.155239,3.7,"['lodging', 'point_of_interest', 'establishment']","Jalan Sisingamangaraja, Ps. Porsea, Samosir"],[81,"Hotel Nabasa","ChIJFys1SmEELjARLQJTaBptPTw",2.3359193,99.0623847,3.9,"['lodging', 'point_of_interest', 'establishment']","Jl. Siliwangi No.8, Kabupaten Toba Samosir"],[82,"Lago Hotel & Resto","ChIJ3cgCv7MFLjARS1Gby-er96A",2.3458605,99.07826969999999,4.6,"['lodging', 'restaurant', 'food', 'point_of_interest', 'establishment']","Jl. Sibolahotang, Sibola Hotangsas, Kabupaten Toba Samosir"],[83,"GM Marsaringar Hotel","ChIJn3sV3FwELjARic53xnAP0h0",2.3290751,99.06689449999999,4.3,"['cafe', 'lodging', 'restaurant', 'food', 'point_of_interest', 'establishment']","Jl. Gereja No.32, Lumban Dolok Haume Bange, Kabupaten Toba Samosir"],[84,"OYO 1344 Hotel Grand Toba","ChIJMxpdcWQELjARpeIiSPfjz8o",2.3385977,99.0630609,3.8,"['lodging', 'point_of_interest', 'establishment']","Jl. Bukit Barisan No.8A, Kabupaten Toba Samosir"],[85,"Brussels Homestay","ChIJwz8QumYELjARgWG3_7v3Tn4",2.33617,99.06337699999999,4.8,"['lodging', 'point_of_interest', 'establishment']","Jl. D. I. Panjaitan no. 14, balige"],[86,"Hotel Sumatera Balige","ChIJe5yDpWYELjARBE0eoIPFxzc",2.3362856,99.0632476,3.7,"['lodging', 'point_of_interest', 'establishment']","Jl. Mulia Raja No.54, Kabupaten Toba Samosir"],[87,"Hotel Mezra","ChIJZ_aK_WYELjARSNM1sQuqxxg",2.3346844,99.06504369999999,3.5,"['lodging', 'point_of_interest', 'establishment']","Jl. Sisingamangaraja No.24, Napitupulu Bagasan, Kabupaten Toba Samosir"],[88,"Hotel Mareda","ChIJm85lX60GLjAR0MngnbRQkqA",2.349663000000001,99.11220399999999,3.5,"['lodging', 'point_of_interest', 'establishment']","Jl. Pasar Melintang No. 1, Balige, Aruan, Kabupaten Toba Samosir"],[89,"J&J Guest House Balige","ChIJ36f80PsFLjARF0rlg7xuyCQ",2.336189,99.064858,4.4,"['lodging', 'point_of_interest', 'establishment']","Jl, Napitupulu Bagasan, Kabupaten Toba Samosir"],[90,"Balige J&J Guesthouse","ChIJCYJsCygFLjARGZxM1BrbQEo",2.3360173,99.06480769999999,4,"['lodging', 'point_of_interest', 'establishment']","Jl No.10, Napitupulu Bagasan, Kabupaten Toba Samosir"],[91,"Hotel Dizomn","ChIJRUqAvWYELjARzj9yZrEHXuo",2.33627,99.06401,3.6,"['lodging', 'point_of_interest', 'establishment']","Jl. DI Pandjaitan No.19, Napitupulu Bagasan, Kabupaten Toba Samosir"],[92,"Homestay Ita Pagar Batu","ChIJA1d-JXUFLjARM_Y6c_Xmaes",2.3320008,99.0494136,5,"['lodging', 'point_of_interest', 'establishment']","Jl. DR. Term. Silalahi No.88, Silalahi Pagar Batu, Kabupaten Toba Samosir"],[93,"J&J Guest House 1 Rumah","ChIJ75IoKh0FLjARxhSc7VcDZqI",2.336106,99.06506999999999,0,"['lodging', 'point_of_interest', 'establishment']","Jalan, Napitupulu Bagasan, Kabupaten Toba Samosir"],[94,"Guest House Raja Deang","ChIJ9Y9QSq8BLjAR3_qH2Gxiwrs",2.3568921,99.1281956,3,"['lodging', 'point_of_interest', 'establishment']","Jl. Sisingamangaraja No.55, Ompu Raja Hutapea, Kabupaten Toba Samosir"]],"fields":[{"name":"column_0","type":"integer","format":"","analyzerType":"INT"},{"name":"Place Name","type":"string","format":"","analyzerType":"STRING"},{"name":"Place ID","type":"string","format":"","analyzerType":"STRING"},{"name":"Latitude","type":"real","format":"","analyzerType":"FLOAT"},{"name":"Longitude","type":"real","format":"","analyzerType":"FLOAT"},{"name":"Rating","type":"real","format":"","analyzerType":"FLOAT"},{"name":"Types","type":"string","format":"","analyzerType":"STRING"},{"name":"Vicinity","type":"string","format":"","analyzerType":"STRING"}]}}];
+            const config = {"version":"v1","config":{"visState":{"filters":[],"layers":[{"id":"dy2d8e","type":"point","config":{"dataId":"pg646vnzc","label":"Point","color":[255,203,153],"columns":{"lat":"Latitude","lng":"Longitude","altitude":null},"isVisible":true,"visConfig":{"radius":10,"fixedRadius":false,"opacity":0.8,"outline":false,"thickness":2,"strokeColor":null,"colorRange":{"name":"Global Warming","type":"sequential","category":"Uber","colors":["#5A1846","#900C3F","#C70039","#E3611C","#F1920E","#FFC300"]},"strokeColorRange":{"name":"Global Warming","type":"sequential","category":"Uber","colors":["#5A1846","#900C3F","#C70039","#E3611C","#F1920E","#FFC300"]},"radiusRange":[0,50],"filled":true},"textLabel":[{"field":null,"color":[255,255,255],"size":18,"offset":[0,0],"anchor":"start","alignment":"center"}]},"visualChannels":{"colorField":null,"colorScale":"quantile","strokeColorField":null,"strokeColorScale":"quantile","sizeField":null,"sizeScale":"linear"}}],"interactionConfig":{"tooltip":{"fieldsToShow":{"pg646vnzc":["column_0","Place Name","Place ID","Latitude","Longitude"]},"enabled":true},"brush":{"size":0.5,"enabled":false},"coordinate":{"enabled":false}},"layerBlending":"normal","splitMaps":[],"animationConfig":{"currentTime":null,"speed":1}},"mapState":{"bearing":24,"dragRotate":true,"latitude":2.6931076342999347,"longitude":98.81581652499234,"pitch":50,"zoom":10,"isSplit":false},"mapStyle":{"styleType":"dark","topLayerGroups":{},"visibleLayerGroups":{"label":true,"road":true,"border":false,"building":true,"water":true,"land":true,"3d building":false},"threeDBuildingColor":[9.665468314072013,17.18305478057247,31.1442867897876],"mapStyles":{}}}};
+
+            const loadedData = keplerGl.KeplerGlSchema.load(
+              datasets,
+              config
+            );
+
+            store.dispatch(keplerGl.addDataToMap({
+              datasets: loadedData.datasets,
+              config: loadedData.config,
+              options: {
+                centerMap: false
+              }
+            }));
+          }(KeplerGl, store))
+        </script>
+      </body>
+    </html>
+  
